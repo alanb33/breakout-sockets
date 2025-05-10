@@ -1,0 +1,31 @@
+{
+  "name": "breakout-sockets",
+  "version": "1.0.0",
+  "description": "A multiplayer Breakout game using sockets.io!",
+  "keywords": [
+    "breakout",
+    "game",
+    "socket.io",
+    "websocket",
+    "sockets"
+  ],
+  "license": "ISC",
+  "author": "Lucky B",
+  "type": "commonjs",
+  "main": "src/server/server.js",
+  "scripts": {
+    "host": "tsc && node src/server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.26.0",
+    "@types/express": "^5.0.1",
+    "eslint": "^9.26.0",
+    "globals": "^16.1.0",
+    "typescript-eslint": "^8.32.0"
+  }
+}
