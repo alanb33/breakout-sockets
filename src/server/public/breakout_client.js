@@ -64,14 +64,25 @@ function _wireConnectButton() {
 function _connectSocket() {
     socket = io();  // Establish connection
 
-    socket.timeout(5000).on("connect", (err, socket) => {
+    socket.timeout(5000).on("connect", err => {
         if (err) {
             printError(err);
         } else {
             console.log("Connected to server");
             connectBtn.disabled = true;
             connectBtn.textContent = "Connected!";
+
+            const storageID = localStorage.getItem("clientID");
+            const transmitID = storageID ? storageID : "NO_ID";
+            console.log(`Sending client ID ${transmitID} to server`);
+            socket.emit("client id to server", transmitID);
         }
+    });
+
+    // The server is sending us a new ID because the existing ID is invalid."
+    socket.on("client id to client", newClientID => {
+        console.log(`Received new client ID: ${newClientID}`);
+        localStorage.setItem("clientID", newClientID);
     });
 
     socket.on("disconnect", socket => {
@@ -85,7 +96,7 @@ function _connectSocket() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         _drawPaddle(gameState.paddleOne);
         _drawPaddle(gameState.paddleTwo);
-        socket.emit("buttons held", buttonsHeld)
+        socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
     });
 
     socket.on("initial vars", serverGameVars => {
