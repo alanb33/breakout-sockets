@@ -96,6 +96,7 @@ function _connectSocket() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         _drawPaddle(gameState.paddleOne);
         _drawPaddle(gameState.paddleTwo);
+        _drawBall(gameState.ball);
         socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
     });
 
@@ -104,6 +105,7 @@ function _connectSocket() {
         gameVars.canvasWidth = serverGameVars.canvasWidth;
         gameVars.paddleVars.width = serverGameVars.paddleWidth;
         gameVars.paddleVars.height = serverGameVars.paddleHeight;
+        gameVars.ball = serverGameVars.ball;
         console.log("Redrawing canvas from initial var update");
         _redrawCanvas();
     });
@@ -114,6 +116,20 @@ function _redrawCanvas() {
     canvas.height = gameVars.canvasHeight;
     console.log("Canvas redrawn");
 }
+
+function _drawBall(ball) {
+    if (ball && gameVars.ball) {
+        ctx.beginPath();
+        ctx.arc(ball.x,
+            ball.y,
+            gameVars.ball.radius,
+            0,
+            Math.PI * 2);
+        ctx.fillStyle = "red";
+        ctx.fill();
+        ctx.closePath();
+    }
+};
 
 function _drawPaddle(paddleVars) {
     if (canvas && ctx) {

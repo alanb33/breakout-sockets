@@ -3,3 +3,32 @@ canvas {
     display: block;
     margin: 0 auto;
 }
+
+body {
+    background-color: black;
+}
+
+#gameHolderDiv {
+    display: grid;
+    column-gap: 20px;
+    grid-template-columns: auto 30% auto;
+    background-color: black;
+}
+
+#gameHolderDiv #gameConsoleDiv {
+    grid-column: 1 / span 1;
+    background-color: black;
+}
+
+#gameHolderDiv #breakoutField {
+    grid-column: 2 / span 2;
+    background-color: black;
+    border-width: 0 5px;
+    border-style: none groove;
+    border-color: green;
+}
+
+#gameHolderDiv #gameStatusDiv {
+    grid-column: 4 / span 1;
+    background-color: black;
+}

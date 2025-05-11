@@ -6,11 +6,15 @@
         <link href="styles.css" rel="stylesheet" />
     </head>
     <body>
-        <div id="breakoutField">
-        </div>
-        <div>
-            <button type="submit" id="connectBtn">Connect to Server</button>
-            <p id="errP"></p>
+        <div id="gameHolderDiv">
+            <div id="gameConsoleDiv">
+                <button type="submit" id="connectBtn">Connect to Server</button>
+            </div>
+            <div id="breakoutField">
+            </div>
+            <div id="gameStatusDiv">
+                <p id="errP"></p>
+            </div>
         </div>
     </body>
     <script src="/socket.io/socket.io.js"></script>
