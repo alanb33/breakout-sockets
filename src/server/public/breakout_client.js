@@ -5,7 +5,7 @@ const connectBtn = document.getElementById("connectBtn");
 let canvas = null
 let ctx = null;
 
-let gameVars = {};
+const gameVars = {};
 
 const unloadedVars = {
     canvas: {
@@ -101,7 +101,7 @@ function _connectSocket() {
     });
 
     socket.on("initial vars", serverGameVars => {
-        gameVars = serverGameVars;
+        Object.assign(gameVars, serverGameVars)
         console.log("Redrawing canvas from initial var update");
         _redrawCanvas();
     });
