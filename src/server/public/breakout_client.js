@@ -96,7 +96,8 @@ function _connectSocket() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         _drawPaddle(gameState.paddleBottom);
         _drawPaddle(gameState.paddleTop);
-        _drawBall(gameState.ball);
+        _drawBall(gameState.ball.upper);
+        _drawBall(gameState.ball.lower);
         socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
     });
 
