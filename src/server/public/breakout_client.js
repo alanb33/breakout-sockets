@@ -5,12 +5,12 @@ const connectBtn = document.getElementById("connectBtn");
 let canvas = null
 let ctx = null;
 
-let gameVars = {
-    canvasWidth: 480,
-    canvasHeight: 640,
-    paddleVars: {
-        width: 100,
-        height: 20,
+let gameVars = {};
+
+const unloadedVars = {
+    canvas: {
+        height: 640,
+        width: 480,
     }
 }
 
@@ -37,8 +37,8 @@ function _buildCanvas() {
 function _buildCanvasElements() {
     canvas = document.createElement("canvas");
     canvas.id = "breakoutCanvas";
-    canvas.width = "480";
-    canvas.height = "640";
+    canvas.width = unloadedVars.canvas.width;
+    canvas.height = unloadedVars.canvas.height;
     ctx = canvas.getContext("2d");
     breakoutField.appendChild(canvas);
 }
@@ -94,35 +94,35 @@ function _connectSocket() {
     socket.on("state update", gameState => {
         // gameState is received as a JSON object
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        _drawPaddle(gameState.paddleOne);
-        _drawPaddle(gameState.paddleTwo);
+        _drawPaddle(gameState.paddleBottom);
+        _drawPaddle(gameState.paddleTop);
         _drawBall(gameState.ball);
         socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
     });
 
     socket.on("initial vars", serverGameVars => {
-        gameVars.canvasHeight = serverGameVars.canvasHeight;
-        gameVars.canvasWidth = serverGameVars.canvasWidth;
-        gameVars.paddleVars.width = serverGameVars.paddleWidth;
-        gameVars.paddleVars.height = serverGameVars.paddleHeight;
-        gameVars.ball = serverGameVars.ball;
+        gameVars = serverGameVars;
         console.log("Redrawing canvas from initial var update");
         _redrawCanvas();
     });
 }
 
 function _redrawCanvas() {
-    canvas.width = gameVars.canvasWidth;
-    canvas.height = gameVars.canvasHeight;
-    console.log("Canvas redrawn");
+    if (gameVars.dimensions) {
+        canvas.width = gameVars.dimensions.canvas.width;
+        canvas.height = gameVars.dimensions.canvas.height;
+        console.log("Canvas redrawn");
+    } else {
+        console.error("Failed to redraw canvas; gameVars undefined")
+    }
 }
 
 function _drawBall(ball) {
-    if (ball && gameVars.ball) {
+    if (ball && gameVars.dimensions) {
         ctx.beginPath();
         ctx.arc(ball.x,
             ball.y,
-            gameVars.ball.radius,
+            gameVars.dimensions.ball.radius,
             0,
             Math.PI * 2);
         ctx.fillStyle = "red";
@@ -132,15 +132,14 @@ function _drawBall(ball) {
 };
 
 function _drawPaddle(paddleVars) {
-    if (canvas && ctx) {
-        // paddleVars contains x, y, and id
-        // paddle size can be drawn from gameVars.paddle
+    console.log(JSON.stringify(paddleVars));
+    if (canvas && ctx && gameVars.dimensions) {
         ctx.beginPath();
         ctx.rect(
             paddleVars.x, 
             paddleVars.y, 
-            gameVars.paddleVars.width,
-            gameVars.paddleVars.height,
+            gameVars.dimensions.paddle.width,
+            gameVars.dimensions.paddle.height,
         );
         ctx.fillStyle = "red";
         ctx.fill();

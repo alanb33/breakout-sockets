@@ -15,50 +15,93 @@ const clientFiles = join(__dirname, "public");
 
 const paddleSpeed = 7;
 
-const gameVars = {
-    paused: false,
-    canvasHeight: 640,
-    canvasWidth: 480,
-    paddleWidth: 100,
-    paddleHeight: 20,
-    ball: {
-        radius: 10
-    },
-}
-
-interface ClientPaddle {
-    [key: string]: number;
-}
-
-const paddleControllers: Array<string> = []
-const clientPaddles: ClientPaddle = {}
-
-const gameState = {
-    paddleOne: {
-        x: gameVars.canvasWidth / 2 - gameVars.paddleWidth / 2,
-        y: gameVars.canvasHeight - gameVars.paddleHeight,
-    },
-    paddleTwo: {
-        x: gameVars.canvasWidth / 2 - gameVars.paddleWidth / 2,
-        y: 0,
-    },
-    ball: {
-        x: gameVars.canvasWidth / 2,
-        y: gameVars.canvasHeight / 2,
+/**
+ * @typedef {object} GameClientStaticVars
+ * GameClientVars is a client-side variable structure whose purpose
+ * is to communicate appropriate dimensions and other client-side
+ * static variables to the players.
+ */
+interface GameClientStaticVars {
+    paused: boolean,
+    dimensions: {
+        canvas: {
+            width: number,
+            height: number,
+        },
+        paddle: {
+            width: number,
+            height: number,
+        },
+        ball: {
+            radius: number,
+        }
     }
 }
 
-const ballBaseSpeed = 2;
-
-const ballState = {
-    speed: ballBaseSpeed,
-    dir: {
-        x: 0,
-        y: 0,
+const gameClientStaticVars: GameClientStaticVars = {
+    paused: false,
+    dimensions: {
+        canvas: {
+            width: 480,
+            height: 640,
+        },
+        paddle: {
+            width: 100,
+            height: 20,
+        },
+        ball: {
+            radius: 10,
+        },
     },
 };
 
+/**
+ * @typedef {object} ClientPaddleSeats
+ * @property {string} key The client's seat number, given a GUID key.
+ */
+interface ClientPaddleSeats {
+    [key: string]: number;
+};
+
+const paddleControllers: Array<string> = []
+const clientPaddles: ClientPaddleSeats = {}
+
+const gameState = {
+    client: {
+        paddleBottom: {
+            x: gameClientStaticVars.dimensions.canvas.width / 2 - gameClientStaticVars.dimensions.paddle.width / 2,
+            y: gameClientStaticVars.dimensions.canvas.height - gameClientStaticVars.dimensions.paddle.height,
+        },
+        paddleTop: {
+            x: gameClientStaticVars.dimensions.canvas.width / 2 - gameClientStaticVars.dimensions.paddle.width / 2,
+            y: 0,
+        },
+        ball: {
+            x: gameClientStaticVars.dimensions.canvas.height / 2,
+            y: gameClientStaticVars.dimensions.canvas.height / 2,
+        }
+    },
+    server: {
+        ball: {
+            dir: {
+                x: 0,   // Represents angle of movement
+                y: 0,   // -1/1, representing up/down
+            },
+            speed: {
+                initial: 3,
+                current: 3,
+            }
+        }
+    }
+}
+
 app.use("/breakout", express.static(clientFiles));
+
+// Cache control middleware
+app.use("/breakout", (req, res, next) => {
+    res.set("Cache-Control", "no-cache");
+    next();
+});
 
 app.get("/breakout", (req, res) => {
     res.sendFile(join(clientFiles, "breakout.html"));
@@ -69,7 +112,7 @@ io.on("connection", socket => {
 
     _receiveClientID(socket);
 
-    socket.emit("initial vars", gameVars);
+    socket.emit("initial vars", gameClientStaticVars);
     _updateClients();
 
     socket.on("disconnect", reason => {
@@ -113,64 +156,64 @@ function _receiveClientID(socket: Socket) {
 };
 
 function _handleMovement(buttonsHeld: {left: boolean, right: boolean}, clientID: string) {
-    if (!gameVars.paused) {
+    if (!gameClientStaticVars.paused) {
         // Get the seat ID of the player by their client ID.
         const playerSeat = clientPaddles[clientID];
 
         // Only listen to first two players.
         if (playerSeat === 0 || playerSeat === 1) {
-            const paddle = playerSeat === 0 ? gameState.paddleOne : gameState.paddleTwo;
+            const paddle = playerSeat === 0 ? gameState.client.paddleBottom : gameState.client.paddleTop;
             if (buttonsHeld.left) {
                 paddle.x -= paddleSpeed;
                 paddle.x = Math.max(0, paddle.x);
             } else if (buttonsHeld.right) {
                 paddle.x += paddleSpeed;
-                paddle.x = Math.min(paddle.x, gameVars.canvasWidth - gameVars.paddleWidth);
+                paddle.x = Math.min(paddle.x, gameClientStaticVars.dimensions.canvas.width - gameClientStaticVars.dimensions.paddle.width);
             };
         };
     };
 };
 
 function mainLoop() {
-    if (!gameVars.paused) {
+    if (!gameClientStaticVars.paused) {
         _moveBall();
     }
     _updateClients();
 }
 
 function _moveBall() {
-    if (ballState.dir.x === 0 && ballState.dir.y === 0) {
+    if (gameState.server.ball.dir.x === 0 && gameState.server.ball.dir.y === 0) {
         // Ball isn't moving, give it a random direction
         const xMovement = (Math.random() * 2) - 1;  // Will result in a range of -1 to 1
         const yMovement = Math.round(Math.random()) === 0 ? -1 : 1; // funny equation, but guarantees it will only go up or down
-        ballState.dir.x = xMovement;
-        ballState.dir.y = yMovement;
+        gameState.server.ball.dir.x = xMovement;
+        gameState.server.ball.dir.y = yMovement;
     }
 
-    gameState.ball.x += ballState.dir.x * ballState.speed;
-    gameState.ball.y += ballState.dir.y * ballState.speed;
+    gameState.client.ball.x += gameState.server.ball.dir.x * gameState.server.ball.speed.current;
+    gameState.client.ball.y += gameState.server.ball.dir.y * gameState.server.ball.speed.current;
 
     // Bounce on side walls
-    if (gameState.ball.x < gameVars.ball.radius) {
-        gameState.ball.x = gameVars.ball.radius;
-        ballState.dir.x = -ballState.dir.x;
-    } else if (gameState.ball.x > gameVars.canvasWidth - gameVars.ball.radius) {
-        gameState.ball.x = gameVars.canvasWidth - gameVars.ball.radius;
-        ballState.dir.x = -ballState.dir.x;
+    if (gameState.client.ball.x < gameClientStaticVars.dimensions.ball.radius) {
+        gameState.client.ball.x = gameClientStaticVars.dimensions.ball.radius;
+        gameState.server.ball.dir.x = -gameState.server.ball.dir.x;
+    } else if (gameState.client.ball.x > gameClientStaticVars.dimensions.canvas.width - gameClientStaticVars.dimensions.ball.radius) {
+        gameState.client.ball.x = gameClientStaticVars.dimensions.canvas.width - gameClientStaticVars.dimensions.ball.radius;
+        gameState.server.ball.dir.x = -gameState.server.ball.dir.x;
     }
 
     function _bouncePaddle(paddle: {x: number, y: number}) {
         // The y is always reflected.
-        ballState.dir.y = -ballState.dir.y;
+        gameState.server.ball.dir.y = -gameState.server.ball.dir.y;
 
         // The X should be multiplied, but capped at -1 or 1.
         // The degree of multiplication depends on where it hit the paddle.
 
-        const x = gameState.ball.x;
+        const x = gameState.client.ball.x;
 
-        const paddleCenter = paddle.x + (gameVars.paddleWidth / 2);
-        const paddleLeftCenter = paddle.x + (gameVars.paddleWidth / 4);
-        const paddleRightCenter = paddleLeftCenter + (gameVars.paddleWidth / 2);
+        const paddleCenter = paddle.x + (gameClientStaticVars.dimensions.paddle.width / 2);
+        const paddleLeftCenter = paddle.x + (gameClientStaticVars.dimensions.paddle.width / 4);
+        const paddleRightCenter = paddleLeftCenter + (gameClientStaticVars.dimensions.paddle.width / 2);
         
         const nearIncrease = 1.2;
         const farIncrease = 1.8;
@@ -179,94 +222,92 @@ function _moveBall() {
             // We're on the left side...
             if (x > paddleLeftCenter) {
                 // Near left, not so severe of an increase
-                ballState.dir.x *= nearIncrease;
+                gameState.server.ball.dir.x *= nearIncrease;
             } else {
                 // Far left! Faster increase and send it that way.
-                ballState.dir.x *= farIncrease;
-                if (ballState.dir.x > 0) { ballState.dir.x = -ballState.dir.x };
+                gameState.server.ball.dir.x *= farIncrease;
+                if (gameState.server.ball.dir.x > 0) { gameState.server.ball.dir.x = -gameState.server.ball.dir.x };
             }
         } else if (x > paddleCenter) {
             if (x < paddleRightCenter) {
                 // Near right, not so severe
-                ballState.dir.x *= nearIncrease;
+                gameState.server.ball.dir.x *= nearIncrease;
             } else {
                 // Far right! Faster!!
-                ballState.dir.x *= farIncrease;
-                if (ballState.dir.x < 0) { ballState.dir.x = -ballState.dir.x };
+                gameState.server.ball.dir.x *= farIncrease;
+                if (gameState.server.ball.dir.x < 0) { gameState.server.ball.dir.x = -gameState.server.ball.dir.x };
             }
         } else {
             // exactly in the center!
-            ballState.dir.x = 0;
+            gameState.server.ball.dir.x = 0;
         }
 
         // Finally, cap dirs
-        ballState.dir.x = Math.max(-1, ballState.dir.x);
-        ballState.dir.x = Math.min(1, ballState.dir.x);
-
-        console.log(`ballstate.dir.x = ${ballState.dir.x}`);
+        gameState.server.ball.dir.x = Math.max(-1, gameState.server.ball.dir.x);
+        gameState.server.ball.dir.x = Math.min(1, gameState.server.ball.dir.x);
 
         // And then... acceleration!
-        ballState.speed *= 1.2;
+        gameState.server.ball.speed.current *= 1.2;
     }
 
     const ballDim: SquareDimensions = {
-        x: gameState.ball.x - gameVars.ball.radius,
-        y: gameState.ball.y - gameVars.ball.radius,
-        w: gameVars.ball.radius * 2,
-        h: gameVars.ball.radius * 2 
+        x: gameState.client.ball.x -gameClientStaticVars.dimensions.ball.radius,
+        y: gameState.client.ball.y -gameClientStaticVars.dimensions.ball.radius,
+        w:gameClientStaticVars.dimensions.ball.radius * 2,
+        h:gameClientStaticVars.dimensions.ball.radius * 2 
     }
 
     function getPaddleDimensions(paddle: {x: number, y: number}): SquareDimensions {
         return {
             x: paddle.x,
             y: paddle.y,
-            w: gameVars.paddleWidth,
-            h: gameVars.paddleHeight
+            w: gameClientStaticVars.dimensions.paddle.width,
+            h: gameClientStaticVars.dimensions.paddle.height
         };
     };
 
-    const paddleOneDim = getPaddleDimensions(gameState.paddleOne);
-    const paddleTwoDim = getPaddleDimensions(gameState.paddleTwo);
-    const resetYLower = gameVars.canvasHeight + (gameVars.ball.radius * 2);
-    const resetYUpper = -(gameVars.ball.radius * 2);
+    const paddleOneDim = getPaddleDimensions(gameState.client.paddleBottom);
+    const paddleTwoDim = getPaddleDimensions(gameState.client.paddleTop);
+    const resetYLower = gameClientStaticVars.dimensions.canvas.height + gameClientStaticVars.dimensions.ball.radius * 2;
+    const resetYUpper = -gameClientStaticVars.dimensions.ball.radius * 2;
 
     // top/bottom bounce. check if ball x is between paddle.x
-    if (ballState.dir.y >= 0) {
+    if (gameState.server.ball.dir.y >= 0) {
         // Moving down, versus paddleOne
         if (squareIntersection(ballDim, paddleOneDim)) {
-            _bouncePaddle(gameState.paddleOne);
+            _bouncePaddle(gameState.client.paddleBottom);
         }
 
         // else, let it hit the back wall. It goes through until eclipsed.
-        if (gameState.ball.y > resetYLower) {
+        if (gameState.client.ball.y > resetYLower) {
             _resetBall()
         }
     } else {
         // Moving up, versus paddleTwo
         if (squareIntersection(ballDim, paddleTwoDim)) {
-            _bouncePaddle(gameState.paddleTwo);
+            _bouncePaddle(gameState.client.paddleTop);
         }
 
-        if (gameState.ball.y < resetYUpper) {
+        if (gameState.client.ball.y < resetYUpper) {
             _resetBall()
         }
     }
 }
 
 function _resetBall() {
-    gameState.ball.x = gameVars.canvasWidth / 2;
-    gameState.ball.y = gameVars.canvasHeight / 2;
-    ballState.dir.x = 0;
-    ballState.dir.y = 0;
-    ballState.speed = ballBaseSpeed;
+    gameState.client.ball.x = gameClientStaticVars.dimensions.canvas.width / 2;
+    gameState.client.ball.y = gameClientStaticVars.dimensions.canvas.height / 2;
+    gameState.server.ball.dir.x = 0;
+    gameState.server.ball.dir.y = 0;
+    gameState.server.ball.speed.current = gameState.server.ball.speed.initial;
 
-    // Zeroing the dirs will cause a re-serve in _moveBall
+    // Zeroing the dirs will cause a re-serve in _moveBall (side effect)
 }
 
 
 function _updateClients() {
     if (io) {
-        io.sockets.emit("state update", gameState);
+        io.sockets.emit("state update", gameState.client);
     }
 }
 
