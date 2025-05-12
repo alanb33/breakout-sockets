@@ -3,6 +3,8 @@ import { join }  from "node:path";
 import express from "express";
 import { Server, Socket } from "socket.io";
 
+import { SquareDimensions, squareIntersection } from "./physics"
+
 const PORT = 25564;
 
 const app = express();
@@ -156,17 +158,6 @@ function _moveBall() {
         gameState.ball.x = gameVars.canvasWidth - gameVars.ball.radius;
         ballState.dir.x = -ballState.dir.x;
     }
-    
-    /*
-    // Temp, bounce on top/bottom walls
-    if (gameState.ball.y < gameVars.ball.radius) {
-        gameState.ball.y = gameVars.ball.radius;
-        ballState.dir.y = -ballState.dir.y;
-    } else if (gameState.ball.y > gameVars.canvasHeight - gameVars.ball.radius) {
-        gameState.ball.y = gameVars.canvasHeight - gameVars.ball.radius;
-        ballState.dir.y = -ballState.dir.y;
-    }
-    */
 
     function _bouncePaddle(paddle: {x: number, y: number}) {
         // The y is always reflected.
@@ -183,31 +174,24 @@ function _moveBall() {
         
         const nearIncrease = 1.2;
         const farIncrease = 1.8;
-
-        console.log(`paddleCenter is ${paddleCenter}`);
-        console.log(`ball.x is ${x}`);
         
         if (x < paddleCenter) {
             // We're on the left side...
             if (x > paddleLeftCenter) {
                 // Near left, not so severe of an increase
                 ballState.dir.x *= nearIncrease;
-                console.log("Hit near left")
             } else {
                 // Far left! Faster increase and send it that way.
                 ballState.dir.x *= farIncrease;
-                console.log("Hit far left")
                 if (ballState.dir.x > 0) { ballState.dir.x = -ballState.dir.x };
             }
         } else if (x > paddleCenter) {
             if (x < paddleRightCenter) {
                 // Near right, not so severe
                 ballState.dir.x *= nearIncrease;
-                console.log("Hit near right")
             } else {
                 // Far right! Faster!!
                 ballState.dir.x *= farIncrease;
-                console.log("Hit far right")
                 if (ballState.dir.x < 0) { ballState.dir.x = -ballState.dir.x };
             }
         } else {
@@ -225,31 +209,45 @@ function _moveBall() {
         ballState.speed *= 1.2;
     }
 
+    const ballDim: SquareDimensions = {
+        x: gameState.ball.x - gameVars.ball.radius,
+        y: gameState.ball.y - gameVars.ball.radius,
+        w: gameVars.ball.radius * 2,
+        h: gameVars.ball.radius * 2 
+    }
+
+    function getPaddleDimensions(paddle: {x: number, y: number}): SquareDimensions {
+        return {
+            x: paddle.x,
+            y: paddle.y,
+            w: gameVars.paddleWidth,
+            h: gameVars.paddleHeight
+        };
+    };
+
+    const paddleOneDim = getPaddleDimensions(gameState.paddleOne);
+    const paddleTwoDim = getPaddleDimensions(gameState.paddleTwo);
+    const resetYLower = gameVars.canvasHeight + (gameVars.ball.radius * 2);
+    const resetYUpper = -(gameVars.ball.radius * 2);
+
     // top/bottom bounce. check if ball x is between paddle.x
     if (ballState.dir.y >= 0) {
         // Moving down, versus paddleOne
-        // If it hits the potential bounce y against a paddle...
-        if (gameState.ball.y > gameVars.canvasHeight - gameVars.ball.radius - gameVars.paddleHeight) {
-            // and it's within range of the paddle...
-            if (gameState.ball.x >= gameState.paddleOne.x && gameState.ball.x <= gameState.paddleOne.x + gameVars.paddleWidth) {
-                // bounce!
-                _bouncePaddle(gameState.paddleOne);
-            }
+        if (squareIntersection(ballDim, paddleOneDim)) {
+            _bouncePaddle(gameState.paddleOne);
         }
 
         // else, let it hit the back wall. It goes through until eclipsed.
-        if (gameState.ball.y > gameVars.canvasHeight + gameVars.ball.radius) {
+        if (gameState.ball.y > resetYLower) {
             _resetBall()
         }
     } else {
         // Moving up, versus paddleTwo
-        if (gameState.ball.y < gameVars.ball.radius + gameVars.paddleHeight) {
-            if (gameState.ball.x >= gameState.paddleTwo.x && gameState.ball.x <= gameState.paddleTwo.x + gameVars.paddleWidth) {
-                _bouncePaddle(gameState.paddleTwo);
-            }
+        if (squareIntersection(ballDim, paddleTwoDim)) {
+            _bouncePaddle(gameState.paddleTwo);
         }
 
-        if (gameState.ball.y < -gameVars.ball.radius) {
+        if (gameState.ball.y < resetYUpper) {
             _resetBall()
         }
     }

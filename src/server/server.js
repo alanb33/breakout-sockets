@@ -40,6 +40,7 @@ const http = __importStar(require("http"));
 const node_path_1 = require("node:path");
 const express_1 = __importDefault(require("express"));
 const socket_io_1 = require("socket.io");
+const physics_1 = require("./physics");
 const PORT = 25564;
 const app = (0, express_1.default)();
 const server = http.createServer(app);
@@ -171,16 +172,6 @@ function _moveBall() {
         gameState.ball.x = gameVars.canvasWidth - gameVars.ball.radius;
         ballState.dir.x = -ballState.dir.x;
     }
-    /*
-    // Temp, bounce on top/bottom walls
-    if (gameState.ball.y < gameVars.ball.radius) {
-        gameState.ball.y = gameVars.ball.radius;
-        ballState.dir.y = -ballState.dir.y;
-    } else if (gameState.ball.y > gameVars.canvasHeight - gameVars.ball.radius) {
-        gameState.ball.y = gameVars.canvasHeight - gameVars.ball.radius;
-        ballState.dir.y = -ballState.dir.y;
-    }
-    */
     function _bouncePaddle(paddle) {
         // The y is always reflected.
         ballState.dir.y = -ballState.dir.y;
@@ -238,30 +229,44 @@ function _moveBall() {
         // And then... acceleration!
         ballState.speed *= 1.2;
     }
+    const ballDim = {
+        x: gameState.ball.x - gameVars.ball.radius,
+        y: gameState.ball.y - gameVars.ball.radius,
+        w: gameVars.ball.radius * 2,
+        h: gameVars.ball.radius * 2
+    };
+    function getPaddleDimensions(paddle) {
+        return {
+            x: paddle.x,
+            y: paddle.y,
+            w: gameVars.paddleWidth,
+            h: gameVars.paddleHeight
+        };
+    }
+    ;
+    const paddleOneDim = getPaddleDimensions(gameState.paddleOne);
+    const paddleTwoDim = getPaddleDimensions(gameState.paddleTwo);
+    const resetYLower = gameVars.canvasHeight + (gameVars.ball.radius * 2);
+    const resetYUpper = -(gameVars.ball.radius * 2);
+    console.log(`paddleOneDim: ${JSON.stringify(paddleOneDim)}`);
+    console.log(`paddleTwoDim: ${JSON.stringify(paddleTwoDim)}`);
     // top/bottom bounce. check if ball x is between paddle.x
     if (ballState.dir.y >= 0) {
         // Moving down, versus paddleOne
-        // If it hits the potential bounce y against a paddle...
-        if (gameState.ball.y > gameVars.canvasHeight - gameVars.ball.radius - gameVars.paddleHeight) {
-            // and it's within range of the paddle...
-            if (gameState.ball.x >= gameState.paddleOne.x && gameState.ball.x <= gameState.paddleOne.x + gameVars.paddleWidth) {
-                // bounce!
-                _bouncePaddle(gameState.paddleOne);
-            }
+        if ((0, physics_1.squareIntersection)(ballDim, paddleOneDim)) {
+            _bouncePaddle(gameState.paddleOne);
         }
         // else, let it hit the back wall. It goes through until eclipsed.
-        if (gameState.ball.y > gameVars.canvasHeight + gameVars.ball.radius) {
+        if (gameState.ball.y > resetYLower) {
             _resetBall();
         }
     }
     else {
         // Moving up, versus paddleTwo
-        if (gameState.ball.y < gameVars.ball.radius + gameVars.paddleHeight) {
-            if (gameState.ball.x >= gameState.paddleTwo.x && gameState.ball.x <= gameState.paddleTwo.x + gameVars.paddleWidth) {
-                _bouncePaddle(gameState.paddleTwo);
-            }
+        if ((0, physics_1.squareIntersection)(ballDim, paddleTwoDim)) {
+            _bouncePaddle(gameState.paddleTwo);
         }
-        if (gameState.ball.y < -gameVars.ball.radius) {
+        if (gameState.ball.y < resetYUpper) {
             _resetBall();
         }
     }
