@@ -94,8 +94,8 @@ function _connectSocket() {
     socket.on("state update", gameState => {
         // gameState is received as a JSON object
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        _drawPaddle(gameState.paddleBottom);
-        _drawPaddle(gameState.paddleTop);
+        _drawPaddle(gameState.paddle.lower);
+        _drawPaddle(gameState.paddle.upper);
         _drawBall(gameState.ball.upper);
         _drawBall(gameState.ball.lower);
         socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
@@ -133,7 +133,6 @@ function _drawBall(ball) {
 };
 
 function _drawPaddle(paddleVars) {
-    console.log(JSON.stringify(paddleVars));
     if (canvas && ctx && gameVars.dimensions) {
         ctx.beginPath();
         ctx.rect(
