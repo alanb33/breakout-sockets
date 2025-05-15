@@ -35,31 +35,31 @@ const gameClientStaticVars: GameClientStaticVars = {
     },
 };
 
-
-
 const paddleControllers: Array<string> = []
 const clientPaddles: ClientPaddleSeats = {}
+
+const dims = gameClientStaticVars.dimensions;
 
 const gameState: GameStateInterface = {
     client: {
         paddle: {
             upper: {
-                x: gameClientStaticVars.dimensions.canvas.width / 2 - gameClientStaticVars.dimensions.paddle.width / 2,
+                x: dims.canvas.width / 2 - dims.paddle.width / 2,
                 y: 0,
             },
             lower: {
-                x: gameClientStaticVars.dimensions.canvas.width / 2 - gameClientStaticVars.dimensions.paddle.width / 2,
-                y: gameClientStaticVars.dimensions.canvas.height - gameClientStaticVars.dimensions.paddle.height,
+                x: dims.canvas.width / 2 - dims.paddle.width / 2,
+                y: dims.canvas.height - dims.paddle.height,
             },
         },
         ball: {
             upper: {
-                x: gameClientStaticVars.dimensions.canvas.height / 2,
-                y: gameClientStaticVars.dimensions.canvas.height / 2,
+                x: dims.canvas.height / 2,
+                y: dims.canvas.height / 2,
             },
             lower: {
-                x: gameClientStaticVars.dimensions.canvas.height / 2,
-                y: gameClientStaticVars.dimensions.canvas.height / 2,
+                x: dims.canvas.height / 2,
+                y: dims.canvas.height / 2,
             },
         }
     },
@@ -94,7 +94,6 @@ app.use("/breakout", express.static(clientFiles));
 // Cache control middleware
 app.use("/breakout", (req, res, next) => {
     res.set("Cache-Control", "no-cache");
-    console.log("Preventing cache");
     next();
 });
 
@@ -115,27 +114,31 @@ io.on("connection", socket => {
     });
 
     socket.on("buttons held", (buttonsHeld, clientID) => {
-        _handlePaddleMovement(buttonsHeld, clientID);
+        if (!gameClientStaticVars.paused) {
+            _handlePaddleMovement(buttonsHeld, clientID);
+        }
     });
 });
 
-function _handlePaddleMovement(buttonsHeld: {left: boolean, right: boolean}, clientID: string) {
-    if (!gameClientStaticVars.paused) {
-        // Get the seat ID of the player by their client ID.
-        const playerSeat = clientPaddles[clientID];
+function _handlePaddleMovement(
+    buttonsHeld: {left: boolean, right: boolean}, 
+    clientID: string) {
+    // Get the seat ID of the player by their client ID.
+    const playerSeat = clientPaddles[clientID];
 
-        // Only listen to first two players.
-        if (playerSeat === 0 || playerSeat === 1) {
-            const paddle = playerSeat === 0 
-            ? gameState.client.paddle.lower 
-            : gameState.client.paddle.upper;
-            if (buttonsHeld.left) {
-                paddle.x -= paddleSpeed;
-                paddle.x = Math.max(0, paddle.x);
-            } else if (buttonsHeld.right) {
-                paddle.x += paddleSpeed;
-                paddle.x = Math.min(paddle.x, gameClientStaticVars.dimensions.canvas.width - gameClientStaticVars.dimensions.paddle.width);
-            };
+    // Only listen to first two players.
+    if (playerSeat === 0 || playerSeat === 1) {
+        const paddle = playerSeat === 0 
+        ? gameState.client.paddle.lower 
+        : gameState.client.paddle.upper;
+        if (buttonsHeld.left) {
+            paddle.x -= paddleSpeed;
+            paddle.x = Math.max(0, paddle.x);
+        } else if (buttonsHeld.right) {
+            const canvasW = dims.canvas.width;
+            const paddleW = dims.paddle.width;
+            paddle.x += paddleSpeed;
+            paddle.x = Math.min(paddle.x, canvasW - paddleW);
         };
     };
 };
@@ -152,10 +155,12 @@ function _receiveClientID(socket: Socket) {
                 break;
             }
         }
-        // If we found the client, we're done, it'll automatically be able to
-        // move the paddles again.
-
-        // Otherwise, didn't find the client, so add a new one to the list.
+        /* 
+            If we found the client, we're done, it'll automatically be able 
+            to move the paddles again.
+            
+            Otherwise, didn't find the client, so add a new one to the list.
+        */
         if (!found) {
             console.log(`ID not found; assigning new.`);
             const newClientID = crypto.randomUUID();
@@ -192,6 +197,5 @@ function _updateClients() {
 
 server.listen(PORT, () => {
     console.log(`Server is live at http://localhost:${PORT}/breakout`);
-
     _initializeGame();
 });

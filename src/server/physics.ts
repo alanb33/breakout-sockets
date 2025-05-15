@@ -11,7 +11,9 @@ export interface SquareDimensions {
  * @param {SquareDimensions} sq2Dim The second square to compare.
  * @return {boolean}                If squares intersect.
  */
-export function squareIntersection(sq1Dim: SquareDimensions, sq2Dim: SquareDimensions): boolean
+export function squareIntersection(
+    sq1Dim: SquareDimensions, 
+    sq2Dim: SquareDimensions): boolean
 {
     interface SquareTransposed
     {

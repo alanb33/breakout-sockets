@@ -29,8 +29,10 @@ class BallPhysicsController {
         if (indicesToDrop.length > 0) {
             let newManaged = [...this._managed];
             for (const index of indicesToDrop.reverse()) {
-                // It's reversed so we don't have to worry about adjusting any
-                // upcoming indices
+                /*
+                    It's reversed, so we don't have to worry about adjusting
+                    any upcoming indices.
+                */
                 newManaged = newManaged.splice(index, 1);
             }
             ;
@@ -95,63 +97,61 @@ class BallPhysicsController {
     }
     ;
     static _executePaddleBounce(clientBall, serverBall, paddle) {
-        {
-            // The y is always reflected.
-            serverBall.dir.y = -serverBall.dir.y;
-            // The X should be multiplied, but capped at -1 or 1.
-            // The degree of multiplication depends on where it hit the paddle.
-            const x = clientBall.x;
-            const paddleCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 2);
-            const paddleLeftCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 4);
-            const paddleRightCenter = paddleLeftCenter + (this._clientVars.dimensions.paddle.width / 2);
-            const nearIncrease = 1.2;
-            const farIncrease = 1.8;
-            const nudgeDistance = 0.1;
-            if (x < paddleCenter) {
-                // We're on the left side...
-                if (x > paddleLeftCenter) {
-                    if (serverBall.dir.x === 0) {
-                        serverBall.dir.x += -nudgeDistance;
-                    }
-                    // Near left, not so severe of an increase
-                    serverBall.dir.x *= nearIncrease;
+        // The y is always reflected.
+        serverBall.dir.y = -serverBall.dir.y;
+        // The X should be multiplied, but capped at -1 or 1.
+        // The degree of multiplication depends on where it hit the paddle.
+        const x = clientBall.x;
+        const paddleCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 2);
+        const paddleLeftCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 4);
+        const paddleRightCenter = paddleLeftCenter + (this._clientVars.dimensions.paddle.width / 2);
+        const nearIncrease = 1.2;
+        const farIncrease = 1.8;
+        const nudgeDistance = 0.1;
+        if (x < paddleCenter) {
+            // We're on the left side...
+            if (x > paddleLeftCenter) {
+                if (serverBall.dir.x === 0) {
+                    serverBall.dir.x += -nudgeDistance;
                 }
-                else {
-                    // Far left! Faster increase and send it that way.
-                    serverBall.dir.x *= farIncrease;
-                    if (serverBall.dir.x > 0) {
-                        serverBall.dir.x = -serverBall.dir.x;
-                    }
-                    ;
-                }
-            }
-            else if (x > paddleCenter) {
-                if (x < paddleRightCenter) {
-                    if (serverBall.dir.x === 0) {
-                        serverBall.dir.x += nudgeDistance;
-                    }
-                    // Near right, not so severe
-                    serverBall.dir.x *= nearIncrease;
-                }
-                else {
-                    // Far right! Faster!!
-                    serverBall.dir.x *= farIncrease;
-                    if (serverBall.dir.x < 0) {
-                        serverBall.dir.x = -serverBall.dir.x;
-                    }
-                    ;
-                }
+                // Near left, not so severe of an increase
+                serverBall.dir.x *= nearIncrease;
             }
             else {
-                // exactly in the center!
-                serverBall.dir.x = 0;
+                // Far left! Faster increase and send it that way.
+                serverBall.dir.x *= farIncrease;
+                if (serverBall.dir.x > 0) {
+                    serverBall.dir.x = -serverBall.dir.x;
+                }
+                ;
             }
-            // Finally, cap dirs
-            serverBall.dir.x = Math.max(-1, serverBall.dir.x);
-            serverBall.dir.x = Math.min(1, serverBall.dir.x);
-            // And then... acceleration!
-            serverBall.speed.current *= 1.2;
         }
+        else if (x > paddleCenter) {
+            if (x < paddleRightCenter) {
+                if (serverBall.dir.x === 0) {
+                    serverBall.dir.x += nudgeDistance;
+                }
+                // Near right, not so severe
+                serverBall.dir.x *= nearIncrease;
+            }
+            else {
+                // Far right! Faster!!
+                serverBall.dir.x *= farIncrease;
+                if (serverBall.dir.x < 0) {
+                    serverBall.dir.x = -serverBall.dir.x;
+                }
+                ;
+            }
+        }
+        else {
+            // exactly in the center!
+            serverBall.dir.x = 0;
+        }
+        // Finally, cap dirs
+        serverBall.dir.x = Math.max(-1, serverBall.dir.x);
+        serverBall.dir.x = Math.min(1, serverBall.dir.x);
+        // And then... acceleration!
+        serverBall.speed.current *= 1.2;
     }
     static _checkForPaddleBounce(clientBall, serverBall, paddle) {
         function getPaddleDimensions(paddle) {

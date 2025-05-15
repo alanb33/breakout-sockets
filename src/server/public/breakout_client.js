@@ -98,7 +98,8 @@ function _connectSocket() {
         _drawPaddle(gameState.paddle.upper);
         _drawBall(gameState.ball.upper);
         _drawBall(gameState.ball.lower);
-        socket.emit("buttons held", buttonsHeld, localStorage.getItem("clientID"))
+        socket.emit("buttons held", buttonsHeld, 
+            localStorage.getItem("clientID"))
     });
 
     socket.on("initial vars", serverGameVars => {

@@ -1,6 +1,5 @@
 # Ignore JS upload for serverside
-/src/server/server.js
-/src/server/physics.js
+/src/server/*.js
 
 # Logs
 logs
