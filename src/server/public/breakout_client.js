@@ -91,13 +91,14 @@ function _connectSocket() {
         connectBtn.textContent = "Connect to Server";
     })
 
-    socket.on("state update", gameState => {
+    socket.on("state update", ({clientState, level}) => {
         // gameState is received as a JSON object
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        _drawPaddle(gameState.paddle.lower);
-        _drawPaddle(gameState.paddle.upper);
-        _drawBall(gameState.ball.upper);
-        _drawBall(gameState.ball.lower);
+        _drawLevel(level);
+        _drawPaddle(clientState.paddle.lower);
+        _drawPaddle(clientState.paddle.upper);
+        _drawBall(clientState.ball.upper);
+        _drawBall(clientState.ball.lower);
         socket.emit("buttons held", buttonsHeld, 
             localStorage.getItem("clientID"))
     });
@@ -132,6 +133,36 @@ function _drawBall(ball) {
         ctx.closePath();
     }
 };
+
+function _drawLevel(level) {
+    /* 
+        Every bar is communicated to the client as an array of positions.
+        Build the bars from these positions.
+    */
+
+    // TODO: Rename paddle to generic bar
+    if (gameVars) {
+        // Idea: colored rows for proximity to center?
+        /* 
+        const barCols = 
+            Math.floor(canvas.width / gameVars.dimensions.paddle.width);
+        const barRows = level.length / barCols;
+        */
+
+        for (const barPos of level) {
+            ctx.beginPath();
+            ctx.rect(
+                barPos.x,
+                barPos.y,
+                gameVars.dimensions.paddle.width,
+                gameVars.dimensions.paddle.height,
+            )
+            ctx.fillStyle = "#93CAED";  // soft blue
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+}
 
 function _drawPaddle(paddleVars) {
     if (canvas && ctx && gameVars.dimensions) {

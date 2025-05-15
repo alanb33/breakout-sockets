@@ -3,8 +3,9 @@ import { join }  from "node:path";
 import express from "express";
 import { Server, Socket } from "socket.io";
 
+import { BreakoutBuilder } from "./BreakoutBuilder";
 import { 
-    ClientPaddleSeats, GameClientStaticVars, GameStateInterface
+    ClientPaddleSeats, GameClientStaticVars, GameStateInterface, Vector
 } from "./types";
 import { BallPhysicsController } from "./BallPhysicsController";
 
@@ -34,6 +35,8 @@ const gameClientStaticVars: GameClientStaticVars = {
         },
     },
 };
+
+const currentLevel: Array<Vector> = []
 
 const paddleControllers: Array<string> = []
 const clientPaddles: ClientPaddleSeats = {}
@@ -177,6 +180,14 @@ function _receiveClientID(socket: Socket) {
 };
 
 function _initializeGame() {
+    BreakoutBuilder.setVars(gameClientStaticVars);
+    const breakoutBars = BreakoutBuilder.buildLevel("square");
+    if (breakoutBars) {
+        currentLevel.push(...breakoutBars);
+        console.log("Breakout bars situated at: ");
+        console.log(JSON.stringify(breakoutBars));
+    }
+    console.log(`currentLevel: ${JSON.stringify(breakoutBars)}`);
     BallPhysicsController.manage("upper", "lower");
     BallPhysicsController.setVars(gameClientStaticVars);
     setInterval(_mainLoop, 10);
@@ -191,7 +202,7 @@ function _mainLoop() {
 
 function _updateClients() {
     if (io) {
-        io.sockets.emit("state update", gameState.client);
+        io.sockets.emit("state update", { clientState: gameState.client, level: currentLevel });
     }
 }
 
