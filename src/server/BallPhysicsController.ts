@@ -43,7 +43,24 @@ export class BallPhysicsController {
         };
     };
 
-    static moveBall(gameState: GameStateInterface): void {
+    static _breakoutBounce(
+        clientBall: ClientBallInterface,
+        serverBall: ServerBallInterface,
+        currentLevel: Array<Vector>): void 
+    {
+        for (const bar of currentLevel) {
+            const barDim = this._getPaddleDimensions(bar);
+            const ballDim = this._getPaddleDimensions(clientBall);
+            if (squareIntersection(ballDim, barDim)) {
+                this._executeBounce(clientBall, serverBall, bar);
+                const barIndex = currentLevel.indexOf(bar);
+                // On collision, delete the bar
+                currentLevel = currentLevel.splice(barIndex, 1);
+            }
+        }
+    }
+
+    static moveBall(gameState: GameStateInterface, currentLevel: Array<Vector>): void {
 
         if (this._clientVars) {
             type ClientBall = keyof typeof gameState.client.ball;
@@ -62,6 +79,8 @@ export class BallPhysicsController {
                 for (const paddle of paddles) {
                     this._checkForPaddleBounce(clientBall, serverBall, paddle)
                 }
+                this._breakoutBounce(clientBall, serverBall, currentLevel);
+                this._watchForOutOfBounds(clientBall, serverBall, ballID);
             };
         } else {
             if (!this._clientErrorLogged) {
@@ -72,6 +91,24 @@ export class BallPhysicsController {
             }
         }
     };
+
+    static _watchForOutOfBounds(clientBall: ClientBallInterface,
+        serverBall: ServerBallInterface,
+        ballID: string
+    ) {
+        const radius = this._clientVars.dimensions.ball.radius;
+        const canvasH = this._clientVars.dimensions.canvas.height;
+
+        // How far the ball can proceed out of bounds
+        const bufferZone = radius * 4;
+
+        const upperReset = -bufferZone;
+        const lowerReset = canvasH + bufferZone;
+
+        if (clientBall.y > lowerReset || clientBall.y < upperReset) {
+            this._resetBall(clientBall, serverBall, ballID);
+        }
+    }
 
     static _serveBall(serverBall: ServerBallInterface, ballID: string): void {
         if (serverBall.dir.x === 0 && serverBall.dir.y === 0) {
@@ -108,10 +145,10 @@ export class BallPhysicsController {
             };
         };
 
-    static _executePaddleBounce(
+    static _executeBounce(
         clientBall: ClientBallInterface,
         serverBall: ServerBallInterface,
-        paddle: Vector): void {
+        bar: Vector): void {
 
         // The y is always reflected.
         serverBall.dir.y = -serverBall.dir.y;
@@ -121,12 +158,12 @@ export class BallPhysicsController {
 
         const x = clientBall.x;
 
-        const paddleCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 2);
-        const paddleLeftCenter = paddle.x + (this._clientVars.dimensions.paddle.width / 4);
+        const paddleCenter = bar.x + (this._clientVars.dimensions.paddle.width / 2);
+        const paddleLeftCenter = bar.x + (this._clientVars.dimensions.paddle.width / 4);
         const paddleRightCenter = paddleLeftCenter + (this._clientVars.dimensions.paddle.width / 2);
         
-        const nearIncrease = 1.2;
-        const farIncrease = 1.8;
+        const nearIncrease = 1.1;
+        const farIncrease = 1.4;
         const nudgeDistance = 0.1;
         
         if (x < paddleCenter) {
@@ -167,48 +204,41 @@ export class BallPhysicsController {
         serverBall.speed.current *= 1.2;
     }
 
+    static _getPaddleDimensions(paddle: Vector): SquareDimensions {
+        return {
+            x: paddle.x,
+            y: paddle.y,
+            w: BallPhysicsController._clientVars.dimensions.paddle.width,
+            h: BallPhysicsController._clientVars.dimensions.paddle.height
+        };
+    };
+
     static _checkForPaddleBounce(clientBall: ClientBallInterface,
         serverBall: ServerBallInterface,
         paddle: Vector): void {
 
-        function getPaddleDimensions(paddle: {x: number, y: number}): SquareDimensions {
-            return {
-                x: paddle.x,
-                y: paddle.y,
-                w: BallPhysicsController._clientVars.dimensions.paddle.width,
-                h: BallPhysicsController._clientVars.dimensions.paddle.height
-            };
+        const paddleDim = this._getPaddleDimensions(paddle);
+        const ballDim: SquareDimensions = {
+            x: clientBall.x - this._clientVars.dimensions.ball.radius,
+            y: clientBall.y - this._clientVars.dimensions.ball.radius,
+            w: this._clientVars.dimensions.ball.radius * 2,
+            h: this._clientVars.dimensions.ball.radius * 2,
         };
 
-    const paddleDim = getPaddleDimensions(paddle);
-    const ballDim: SquareDimensions = {
-        x: clientBall.x - this._clientVars.dimensions.ball.radius,
-        y: clientBall.y - this._clientVars.dimensions.ball.radius,
-        w: this._clientVars.dimensions.ball.radius * 2,
-        h: this._clientVars.dimensions.ball.radius * 2,
-    };
-
-    const resetLowerY = this._clientVars.dimensions.canvas.height
-                        + this._clientVars.dimensions.ball.radius * 2;
-    const resetUpperY = 0 - this._clientVars.dimensions.ball.radius * 2;
-
-    if (squareIntersection(ballDim, paddleDim)) {
-        this._executePaddleBounce(clientBall, serverBall, paddle);
+        if (squareIntersection(ballDim, paddleDim)) {
+            this._executeBounce(clientBall, serverBall, paddle);
+        }
     }
-
-    // else, let it hit the back wall. It goes through until eclipsed.
-    if (clientBall.y > resetLowerY) {
-        this._resetBall(clientBall, serverBall);
-    } else if (clientBall.y < resetUpperY) {
-        this._resetBall(clientBall, serverBall);
-    }
-}
 
     static _resetBall(clientBall: ClientBallInterface,
-        serverBall: ServerBallInterface
+        serverBall: ServerBallInterface,
+        ballID: string
     ) {
-        clientBall.x = this._clientVars.dimensions.canvas.width / 2;
-        clientBall.y = this._clientVars.dimensions.canvas.height / 2;
+        const ballData = this._clientVars.initPos.ball;
+        const id = ballID as keyof typeof ballData;
+        const ballInitPos = ballData[id];
+        clientBall.x = ballInitPos.x;
+        clientBall.y = ballInitPos.y;
         serverBall.dir.x = 0;
         serverBall.dir.y = 0;
         serverBall.speed.current = serverBall.speed.initial;

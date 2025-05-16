@@ -32,3 +32,7 @@ body {
     grid-column: 4 / span 1;
     background-color: black;
 }
+
+#pauseStatus {
+    color: limegreen;
+}

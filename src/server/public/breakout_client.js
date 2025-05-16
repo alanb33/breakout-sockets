@@ -94,6 +94,7 @@ function _connectSocket() {
     socket.on("state update", ({clientState, level}) => {
         // gameState is received as a JSON object
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        _updatePauseStatus(clientState.paused, clientState.unpausing);
         _drawLevel(level);
         _drawPaddle(clientState.paddle.lower);
         _drawPaddle(clientState.paddle.upper);
@@ -108,6 +109,23 @@ function _connectSocket() {
         console.log("Redrawing canvas from initial var update");
         _redrawCanvas();
     });
+}
+
+function _updatePauseStatus(paused, unpausing) {
+    const pauseStatusP = document.getElementById("pauseStatus");
+    if (pauseStatusP) {
+        if (paused) {
+            pauseStatusP.textContent = "Paused!";
+        }
+
+        if (unpausing) {
+            pauseStatusP.textContent = "Unpausing soon!";
+        }
+
+        if (!paused && !unpausing) {
+            pauseStatusP.textContent = "";
+        }
+    } 
 }
 
 function _redrawCanvas() {

@@ -18,6 +18,8 @@ export interface ServerBallInterface {
 
 export interface GameStateInterface {
     client: {
+        paused: boolean,
+        unpausing: boolean,
         paddle: {
             upper: Vector,
             lower: Vector,
@@ -50,7 +52,6 @@ export interface ClientPaddleSeats {
  * static variables to the players.
  */
 export interface GameClientStaticVars {
-    paused: boolean,
     dimensions: {
         canvas: {
             width: number,
@@ -63,5 +64,11 @@ export interface GameClientStaticVars {
         ball: {
             radius: number,
         }
+    },
+    initPos: {
+        ball: {
+            upper: Vector,
+            lower: Vector,
+        }
     }
-}
+};

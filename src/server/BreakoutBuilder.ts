@@ -18,9 +18,8 @@ export class BreakoutBuilder {
                 h: dims.paddle.height,
             }
             const barsWide = Math.floor(dims.canvas.width / dims.paddle.width);
-            console.log(`barsWide: ${barsWide}`);
             
-            const maxRows = 4;
+            const maxRows = 6;
             const barsHigh = Math.min(maxRows,
                 Math.floor(dims.canvas.height / dims.paddle.height));
 

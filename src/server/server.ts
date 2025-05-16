@@ -17,34 +17,56 @@ const io = new Server(server);
 
 const clientFiles = join(__dirname, "public"); 
 
-const paddleSpeed = 7;
+const paddleSpeed = 8;
+
+const CANVAS_HEIGHT = 640;
+const CANVAS_WIDTH = 480;
+const PADDLE_WIDTH = 100;
+const PADDLE_HEIGHT = 20;
+const BALL_RADIUS = 10;
+const BALL_OFFSET = 150;
 
 const gameClientStaticVars: GameClientStaticVars = {
-    paused: false,
     dimensions: {
         canvas: {
-            width: 480,
-            height: 640,
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
         },
         paddle: {
-            width: 100,
-            height: 20,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
         },
         ball: {
-            radius: 10,
+            radius: BALL_RADIUS,
         },
     },
+    initPos: {
+        ball: {
+            upper: {
+                x: CANVAS_WIDTH / 2,
+                y: CANVAS_HEIGHT / 2 - BALL_OFFSET,
+            },
+            lower: {
+                x: CANVAS_WIDTH / 2,
+                y: CANVAS_HEIGHT / 2 + BALL_OFFSET,
+            }
+        }
+    }
 };
 
 const currentLevel: Array<Vector> = []
 
 const paddleControllers: Array<string> = []
 const clientPaddles: ClientPaddleSeats = {}
+let activePlayerCount = 0;
 
 const dims = gameClientStaticVars.dimensions;
+const ballPos = gameClientStaticVars.initPos.ball;
 
 const gameState: GameStateInterface = {
     client: {
+        paused: true,
+        unpausing: false,
         paddle: {
             upper: {
                 x: dims.canvas.width / 2 - dims.paddle.width / 2,
@@ -57,12 +79,12 @@ const gameState: GameStateInterface = {
         },
         ball: {
             upper: {
-                x: dims.canvas.height / 2,
-                y: dims.canvas.height / 2,
+                x: ballPos.upper.x,
+                y: ballPos.upper.y,
             },
             lower: {
-                x: dims.canvas.height / 2,
-                y: dims.canvas.height / 2,
+                x: ballPos.lower.x,
+                y: ballPos.lower.y,
             },
         }
     },
@@ -107,6 +129,11 @@ app.get("/breakout", (req, res) => {
 io.on("connection", socket => {
     console.log(`A user connected!`);
 
+    if (activePlayerCount > 2) {
+        socket.emit("max players reached");
+        socket.disconnect(true);
+    }
+
     _receiveClientID(socket);
 
     socket.emit("initial vars", gameClientStaticVars);
@@ -114,10 +141,11 @@ io.on("connection", socket => {
 
     socket.on("disconnect", reason => {
         console.log(`A user disconnected: ${reason}`);
+        activePlayerCount--;
     });
 
     socket.on("buttons held", (buttonsHeld, clientID) => {
-        if (!gameClientStaticVars.paused) {
+        if (!gameState.client.paused) {
             _handlePaddleMovement(buttonsHeld, clientID);
         }
     });
@@ -175,6 +203,8 @@ function _receiveClientID(socket: Socket) {
 
             console.log(`Pushing ID ${newClientID} to client at seat ${seatNum}.`);
             socket.emit("client id to client", newClientID);
+
+            activePlayerCount++;
         }
     });
 };
@@ -184,20 +214,37 @@ function _initializeGame() {
     const breakoutBars = BreakoutBuilder.buildLevel("square");
     if (breakoutBars) {
         currentLevel.push(...breakoutBars);
-        console.log("Breakout bars situated at: ");
-        console.log(JSON.stringify(breakoutBars));
     }
-    console.log(`currentLevel: ${JSON.stringify(breakoutBars)}`);
     BallPhysicsController.manage("upper", "lower");
     BallPhysicsController.setVars(gameClientStaticVars);
     setInterval(_mainLoop, 10);
 }
 
+function _setPaused(state: boolean) {
+    gameState.client.paused = state;
+}
+
 function _mainLoop() {
-    if (!gameClientStaticVars.paused) {
-        BallPhysicsController.moveBall(gameState)
-    }
-    _updateClients();
+    const client = gameState.client;
+
+    if (activePlayerCount >= 2 && client.paused && !client.unpausing) {
+        console.log("Unpausing in 3 seconds");
+        client.unpausing = true;
+        setInterval(() => { _setPaused(false)}, 3000);
+    };
+
+    if (activePlayerCount <= 1 && !client.paused) {
+        console.log("No players; pausing game");
+        _setPaused(true);
+    };
+
+    if (!gameState.client.paused && currentLevel) {
+        BallPhysicsController.moveBall(gameState, currentLevel)
+    };
+
+    if (activePlayerCount > 0) {
+        _updateClients();
+    };
 }
 
 function _updateClients() {
